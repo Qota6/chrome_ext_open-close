@@ -42,11 +42,11 @@
     :host { all: initial; }
     .panel {
       position: fixed;
-      top: 50%;
+      top: 16px;
       left: 8px;
-      transform: translateY(-50%) translateX(-12px);
+      transform: translateX(-12px);
       width: 320px;
-      max-height: 80vh;
+      max-height: calc(100vh - 32px);
       background: rgba(32, 33, 36, 0.96);
       color: #e8eaed;
       border-radius: 12px;
@@ -65,7 +65,7 @@
     .panel.open {
       opacity: 1;
       pointer-events: auto;
-      transform: translateY(-50%) translateX(0);
+      transform: translateX(0);
     }
     .panel-header {
       padding: 10px 12px;
