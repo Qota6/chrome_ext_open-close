@@ -20,7 +20,10 @@ chrome.action.onClicked.addListener(sendToggle);
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'GET_TABS') {
-    chrome.tabs.query({ currentWindow: true }).then((tabs) => {
+    (async () => {
+      const tabs = await chrome.tabs.query({ currentWindow: true });
+      const windowId = tabs[0]?.windowId;
+      const groups = windowId != null ? await chrome.tabGroups.query({ windowId }) : [];
       sendResponse({
         tabs: tabs.map((t) => ({
           id: t.id,
@@ -30,9 +33,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           active: t.active,
           index: t.index,
           pinned: t.pinned,
+          groupId: t.groupId, // -1 = ungrouped
+        })),
+        groups: groups.map((g) => ({
+          id: g.id,
+          title: g.title,
+          color: g.color,
+          collapsed: g.collapsed,
         })),
       });
-    });
+    })();
     return true; // 非同期応答
   }
   if (msg?.type === 'ACTIVATE_TAB') {
@@ -41,6 +51,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg?.type === 'CLOSE_TAB') {
     chrome.tabs.remove(msg.tabId).then(() => sendResponse({ ok: true }));
+    return true;
+  }
+  if (msg?.type === 'TOGGLE_GROUP') {
+    chrome.tabGroups
+      .update(msg.groupId, { collapsed: msg.collapsed })
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false }));
     return true;
   }
 });
