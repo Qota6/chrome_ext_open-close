@@ -1,6 +1,5 @@
 // Content script
-// - 画面左端のホットゾーンにホバーするとタブ一覧パネルをフローティング表示
-// - キーボードショートカット / 拡張アイコンクリックでもトグル可能
+// - キーボードショートカット (or 拡張アイコンクリック) でタブ一覧パネルをトグル表示
 // - サイト側 DOM への干渉を最小化するため、すべて Shadow DOM 内に閉じ込める
 
 (() => {
@@ -9,12 +8,6 @@
   // 多重注入ガード (拡張機能の更新時など)
   if (window.__hoverTabListInjected) return;
   window.__hoverTabListInjected = true;
-
-  const HOTZONE_WIDTH = 6;        // px - 画面左端のホバー検出幅
-  const HOTZONE_TOP_RATIO = 0.2;  // 縦中央 60% のみ反応 (画面端の誤発動を抑える)
-  const HOTZONE_BOTTOM_RATIO = 0.8;
-  const SHOW_DELAY = 120;         // ms
-  const HIDE_DELAY = 220;
 
   // chrome.tabGroups の color (文字列) → 表示色のマッピング (Chrome 純正に近い色)
   const GROUP_COLORS = {
@@ -34,9 +27,6 @@
   let shadow;
   let panel;
   let isOpen = false;
-  let showTimer;
-  let hideTimer;
-  let isFullscreen = false;
 
   const styles = `
     :host { all: initial; }
@@ -206,42 +196,6 @@
     shadow.appendChild(panel);
 
     document.documentElement.appendChild(host);
-
-    panel.addEventListener('mouseenter', cancelHide);
-    panel.addEventListener('mouseleave', scheduleHide);
-
-    // ホットゾーンは DOM 要素ではなく mousemove で監視する。
-    // DOM 要素を画面端にオーバーレイすると、サイト側の左端固定 UI のクリックを奪ってしまうため。
-    document.addEventListener('mousemove', onMouseMove, { passive: true });
-  };
-
-  const onMouseMove = (e) => {
-    if (isFullscreen || isOpen) return;
-    const h = window.innerHeight;
-    const inHotzone =
-      e.clientX < HOTZONE_WIDTH &&
-      e.clientY > h * HOTZONE_TOP_RATIO &&
-      e.clientY < h * HOTZONE_BOTTOM_RATIO;
-    if (inHotzone) {
-      if (!showTimer) {
-        clearTimeout(hideTimer);
-        hideTimer = null;
-        showTimer = setTimeout(() => {
-          showTimer = null;
-          open();
-        }, SHOW_DELAY);
-      }
-    } else if (showTimer) {
-      clearTimeout(showTimer);
-      showTimer = null;
-    }
-  };
-
-  const cancelHide = () => clearTimeout(hideTimer);
-  const scheduleHide = () => {
-    clearTimeout(showTimer);
-    showTimer = null;
-    hideTimer = setTimeout(close, HIDE_DELAY);
   };
 
   const open = async () => {
@@ -375,10 +329,9 @@
     panel.appendChild(list);
   };
 
-  // フルスクリーン中は無効化 (動画・ゲームを邪魔しない)
+  // フルスクリーンに入ったら自動で閉じる (動画・ゲームを邪魔しない)
   document.addEventListener('fullscreenchange', () => {
-    isFullscreen = !!document.fullscreenElement;
-    if (isFullscreen) close();
+    if (document.fullscreenElement) close();
   });
 
   // background からの TOGGLE (ショートカット / 拡張アイコンクリック)
